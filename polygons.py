@@ -15,72 +15,62 @@ import regions
 import networkx as nx
 import networkGraph
 
+# Useful for testing (in polygon 42 region model)
+wildcard = 31
+
+# Get the networkX-based graph model of the Transmission Network, overlayed with generator information. 
 G = networkGraph.getNetworkAndGeneratorGraph()
+# Get a sorted reference list of nodes in G.
+node_keys = sorted(list(G.nodes()))
+total_len = 0
+for edge in G.edges():
+    total_len += G.edge[edge[0]][edge[1]]["length"]
+print "total Length"
+print total_len
 
-
-
-# The fraction of a region's load in each polygon.
-regions.nsw.polygons = {21: 0, 22: 0, 23: 0, 24: .05, 28: 0, 29: 0, 30: 0, 31: .8, 33: 0, 34: 0, 35: .05, 36: .1}
-regions.qld.polygons = {1: .04, 2: 0, 3: 0, 4: .11, 5: 0, 6: 0, 7: .27, 8: 0, 9: 0, 10: 0, 11: .02, 14: 0, 15: 0, 16: .14, 17: .42}
-regions.sa.polygons = {12: 0, 13: 0, 18: 0, 19: 0, 20: 0, 25: 0, 26: 0, 27: .1, 32: .9}
+# These dictionary objects will hold the fraction of a region's load in each polygon.
+regions.nsw.polygons = {}
+regions.qld.polygons = {}
+regions.sa.polygons = {}
 regions.snowy.polygons = {}
-regions.tas.polygons = {40: .2, 41: .2, 42: 0, 43: .6}
-regions.vic.polygons = {37: .2, 38: .1, 39: .7}
+regions.tas.polygons = {}
+regions.vic.polygons = {}
+
+# Add node key indices to the region polygons lists. Eventually going to make these node lists. Stick with polygons for the moment. 
+# Also - what is the 'snowy' region? Left it blank for now. ACT? At the moment ACT is put in as part of nsw for simplicity. 
+for idx, node in enumerate(node_keys):
+    if G.node[node]['state'] == "New South Wales" or  G.node[node]['state'] == "Australian Capital Territory":
+        regions.nsw.polygons[idx] = 0
+    elif G.node[node]['state'] == "Queensland":
+        regions.qld.polygons[idx] = 0
+    elif G.node[node]['state'] == "South Australia":
+        regions.sa.polygons[idx] = 0
+    elif G.node[node]['state'] == "Victoria":
+        regions.vic.polygons[idx] = 0
+    elif G.node[node]['state'] == "Tasmania":
+        regions.tas.polygons[idx] = 0
+    else:
+        print G.node[node]['state']
+
+# Arbitrarily spread demand across every node in a region. This needs to change (badly) but I just want to get the code working. 
+# TODO: Get populations in the network graph so we can have realistic demand. 
+for region in regions.All:
+    for key in list(region.polygons):
+        region.polygons[key] = float(1) / float(len(list(region.polygons)))
+
 
 # Ensure all weights sum to one.
 for r in regions.All:
     if len(r.polygons) > 0:
         assert round(sum(r.polygons.values())) == 1
 
-# Useful for testing
-wildcard = 31
 
-# Vertices of the closed polygons (nb. must be closed)
-_polygons = {
-    1: ((144.602, -13.838), (145.602, -13.838), (148.447, -18.282), (146.646, -19.041), (145.107, -18.792), (143.459, -18.480), (144.602, -13.838)),
-    2: ((140.949, -18.099), (143.459, -18.480), (143.701, -20.715), (140.949, -20.612), (140.949, -18.099)),
-    3: ((143.459, -18.480), (145.107, -18.792), (146.646, -20.797), (143.701, -20.715), (143.459, -18.480)),
-    4: ((148.447, -18.282), (150.754, -21.545), (147.810, -22.513), (146.646, -20.797), (145.107, -18.792), (146.646, -19.041), (148.447, -18.282)),
-    5: ((140.949, -20.612), (143.701, -20.715), (143.987, -23.665), (140.949, -23.665), (140.949, -20.612)),
-    6: ((143.701, -20.715), (146.646, -20.797), (147.810, -22.513), (148.887, -23.665), (146.382, -23.665), (143.987, -23.665), (143.701, -20.715)),
-    7: ((150.754, -21.545), (152.974, -24.137), (149.639, -24.817), (148.887, -23.665), (147.810, -22.513), (150.754, -21.545)),
-    8: ((140.949, -23.665), (143.987, -23.665), (144.141, -25.958), (140.999, -25.996), (140.949, -23.665)),
-    9: ((143.987, -23.665), (146.382, -23.665), (147.458, -25.958), (144.141, -25.958), (143.987, -23.665)),
-    10: ((146.382, -23.665), (148.887, -23.665), (149.639, -24.817), (150.529, -25.958), (147.458, -25.958), (146.382, -23.665)),
-    11: ((152.974, -24.137), (154.457, -25.958), (150.529, -25.958), (149.639, -24.817), (152.974, -24.137)),
-    12: ((135.183, -25.999), (137.933, -25.997), (137.933, -29.075), (135.187, -29.075), (135.183, -25.999)),
-    13: ((137.933, -25.997), (140.999, -25.996), (140.999, -28.999), (137.933, -29.075), (137.933, -25.997)),
-    14: ((140.999, -25.996), (144.141, -25.958), (144.232, -28.999), (141.001, -28.999), (140.999, -25.996)),
-    15: ((144.141, -25.958), (147.458, -25.958), (147.550, -28.999), (144.232, -28.999), (144.141, -25.958)),
-    16: ((147.458, -25.958), (150.529, -25.958), (150.688, -28.999), (147.550, -28.999), (147.458, -25.958)),
-    17: ((154.457, -25.958), (154.852, -29.075), (150.688, -28.999), (150.529, -25.958), (154.457, -25.958)),
-    18: ((131.199, -29.075), (135.187, -29.075), (135.187, -31.325), (131.199, -31.325), (131.199, -29.075)),
-    19: ((135.187, -29.075), (137.933, -29.075), (137.933, -31.325), (135.187, -31.325), (135.187, -29.075)),
-    20: ((137.933, -29.075), (140.999, -28.999), (141.001, -30.999), (141.001, -31.354), (137.933, -31.325), (137.933, -29.075)),
-    21: ((141.001, -28.999), (144.232, -28.999), (144.141, -31.109), (141.001, -30.998), (141.001, -28.999)),
-    22: ((144.232, -28.999), (147.550, -28.999), (146.843, -31.840), (144.141, -31.766), (144.141, -31.109), (144.232, -28.999)),
-    23: ((147.550, -28.999), (150.688, -28.999), (149.359, -31.878), (146.843, -31.840), (147.550, -28.999)),
-    24: ((154.852, -29.075), (153.798, -32.639), (149.359, -31.878), (150.688, -28.999), (154.852, -29.075)),
-    25: ((131.199, -31.325), (135.187, -31.325), (133.638, -34.053), (131.199, -32.658), (131.199, -31.325)),
-    26: ((135.187, -31.325), (137.933, -31.325), (137.900, -33.852), (137.856, -36.985), (135.700, -36), (133.638, -34.053), (135.187, -31.325)),
-    27: ((137.933, -31.326), (141.001, -31.354), (141.002, -33.311), (141.003, -33.982), (140.964, -33.981), (137.900, -33.852), (137.933, -31.326)),
-    28: ((141.001, -30.998), (144.141, -31.109), (144.141, -31.766), (143.954, -33.303), (141.002, -33.311), (141.001, -31.354), (141.001, -30.998)),
-    29: ((144.141, -31.766), (146.843, -31.840), (146.250, -34.053), (143.943, -34.016), (143.954, -33.303), (144.141, -31.766)),
-    30: ((146.843, -31.840), (149.359, -31.878), (148.315, -34.107), (146.250, -34.053), (146.843, -31.840)),
-    31: ((153.798, -32.639), (152.260, -34.724), (148.315, -34.107), (149.359, -31.878), (153.798, -32.639)),
-    32: ((137.900, -33.852), (140.964, -33.981), (140.964, -33.990), (140.963, -33.990), (140.962, -34.110), (140.966, -35.237), (140.966, -35.389), (140.964, -35.749), (140.974, -37.359), (140.971, -37.791), (140.966, -38.056), (140.966, -38.568), (137.856, -36.985), (137.900, -33.852)),
-    33: ((141.002, -33.311), (143.954, -33.303), (143.943, -34.016), (143.811, -35.299), (140.966, -35.237), (140.962, -34.108), (140.963, -33.990), (140.964, -33.990), (140.964, -33.981), (141.003, -33.982), (141.002, -33.311)),
-    34: ((143.943, -34.016), (146.250, -34.053), (145.698, -35.989), (143.811, -35.299), (143.943, -34.016)),
-    35: ((146.250, -34.053), (148.315, -34.107), (147.118, -36.510), (145.698, -35.989), (146.250, -34.053)),
-    36: ((152.260, -34.724), (150.590, -37.831), (147.118, -36.510), (148.315, -34.107), (152.260, -34.724)),
-    37: ((140.966, -35.237), (143.811, -35.299), (143.483, -39.249), (140.968, -38.568), (140.966, -38.056), (140.971, -37.791), (140.975, -37.359), (140.963, -35.742), (140.966, -35.389), (140.966, -35.237)),
-    38: ((146.426, -40.581), (145.698, -35.989), (147.118, -36.510), (150.590, -37.831), (146.426, -40.581)),
-    39: ((145.698, -35.989), (146.426, -40.581), (143.481, -39.249), (143.811, -35.299), (145.698, -35.989)),
-    40: ((143.483, -39.249), (146.426, -40.581), (146.426, -42.033), (144.097, -42.033), (143.483, -39.249)),
-    41: ((146.426, -40.581), (149.052, -38.849), (149.052, -42.033), (146.426, -42.033), (146.426, -40.581)),
-    42: ((144.097, -42.033), (146.426, -42.033), (146.426, -44), (144.097, -43.747), (144.097, -42.033)),
-    43: ((146.426, -42.033), (149.052, -42.033), (149.052, -43.747), (146.426, -44), (146.426, -42.033)),
-}
+_polygons = {}
+
+# Vertices of the closed polygons (nb. from Ben - must be closed)
+# Here we instead add single coordinate tuples as the polygons. Note that the code is expecting a tuple of tuples, hence the ((double brackets)).  
+for idx, node in enumerate(node_keys):
+    _polygons[idx] = ((node),)
 
 numpolygons = len(_polygons)
 
@@ -101,7 +91,7 @@ def region(poly):
     """
     return _region_table[poly]
 
-
+# These msap a limit to an index (polygon number is used as index.)
 wind_limit = [None, 80.3, 0, 36.9, 6.5, 15.6, 1.5, 6.9, 2.6, 0, 4.1,
               1.5, 2.1, 0.9, 30.3, 0, 0, 40.5, 0.2, 0, 49.1, 2.3, 0,
               1.7, 116.3, 3.3, 71.9, 128.3, 11.7, 0.5, 0.6, 52.5,
@@ -138,17 +128,20 @@ def _centroid(vertices):
     """Find the centroid of a polygon."""
 
     # Ensure the polygon is closed
-    assert vertices[0] == vertices[-1]
-    thesum = 0
-    vsum = (0, 0)
-    for i in range(len(vertices) - 1):
-        v1 = vertices[i]
-        v2 = vertices[i + 1]
-        cross = v1[0] * v2[1] - v1[1] * v2[0]
-        thesum += cross
-        vsum = (((v1[0] + v2[0]) * cross) + vsum[0], ((v1[1] + v2[1]) * cross) + vsum[1])
-        z = 1. / (3. * thesum)
-    return (vsum[0] * z, vsum[1] * z)
+    if len(vertices) > 1:
+        assert vertices[0] == vertices[-1]
+        thesum = 0
+        vsum = (0, 0)
+        for i in range(len(vertices) - 1):
+            v1 = vertices[i]
+            v2 = vertices[i + 1]
+            cross = v1[0] * v2[1] - v1[1] * v2[0]
+            thesum += cross
+            vsum = (((v1[0] + v2[0]) * cross) + vsum[0], ((v1[1] + v2[1]) * cross) + vsum[1])
+            z = 1. / (3. * thesum)
+        return (vsum[0] * z, vsum[1] * z)
+    else:
+        return vertices[0]
 
 centroids = {}
 for i, vertices in _polygons.iteritems():
@@ -205,11 +198,35 @@ def dist(poly1, poly2):
     >>> dist(1,43) == distances[1,43]
     True
     """
-    return int(centroids[poly1].distance(centroids[poly2]))
+    print "Getting dist: ("+str(poly1)+" , "+str(poly2)+")"
+
+
+    
+    
+    # Get the nx node objects that correspond to the two poly ids that were passed. 
+    nx_poly_1 = node_keys[poly1 - 1]
+    nx_poly_2 = node_keys[poly2 - 1]
+
+
+
+    # Find the shortest weighted path via graphx.
+    # shortest_path = nx.shortest_path(G, source=nx_poly_1, target=nx_poly_2, weight="length")
+    shortest_path_len = nx.shortest_path_length(G, source=nx_poly_1, target=nx_poly_2, weight="length")
+    # # iterate to find the distance. 
+    # dist = 0
+    # # print "Intermediate Lengths:"
+    # for i in range(len(shortest_path)-1):
+    #     length = float(G.edge[shortest_path[i]][shortest_path[i+1]]["length"])
+    #     dist += length
+        # print length
+    # print "---"
+    # print dist
+    print shortest_path_len
+    return shortest_path_len
 
 
 def pathlen(path):
-    """Return the total length of a path.
+    """Return the total length of a path
 
     >>> pathlen([])
     0
@@ -218,57 +235,60 @@ def pathlen(path):
     >>> y = dist(4,7)
     >>> assert pathlen([(1, 4), (4, 7)]) == x + y
     """
-    total = 0
-    for poly1, poly2 in path:
-        total += dist(poly1, poly2)
-    return total
+    # Get the networkX node ids (tuples) from the path. 
+    path_nx_nodes = [node_keys[n-1] for n in path]
+    # iterate to find the distance. 
+    dist = 0
+    for i in range(len(path_nx_nodes)-1):
+        dist += G.edge[path_nx_nodes[i]][path_nx_nodes[i+1]]["length"]
+    return dist
 
 
 # A proposed transmission network.
 
-net = {1: {2: dist(1, 2), 3: dist(1, 3), 4: dist(1, 4)},
-       2: {1: dist(2, 1), 3: dist(2, 3), 5: dist(2, 5)},
-       3: {1: dist(3, 1), 2: dist(3, 2), 4: dist(3, 4), 6: dist(3, 6)},
-       4: {1: dist(4, 1), 3: dist(4, 3), 6: dist(4, 6), 7: dist(4, 7), 10: dist(4, 10)},
-       5: {2: dist(5, 2), 6: dist(5, 6), 8: dist(5, 8)},
-       6: {3: dist(6, 3), 4: dist(6, 4), 5: dist(6, 5), 9: dist(6, 9)},
-       7: {4: dist(7, 4), 10: dist(7, 10), 11: dist(7, 11), 16: dist(7, 16)},
-       8: {5: dist(8, 5), 9: dist(8, 9), 14: dist(8, 14)},
-       9: {6: dist(9, 6), 8: dist(9, 8), 10: dist(9, 10), 15: dist(9, 15)},
-       10: {4: dist(10, 4), 7: dist(10, 7), 9: dist(10, 9), 16: dist(10, 16)},
-       11: {7: dist(7, 11), 16: dist(16, 11), 17: dist(11, 17)},
-       12: {13: dist(12, 13), 19: dist(12, 19)},
-       13: {12: dist(13, 12), 14: dist(13, 14), 20: dist(13, 20)},
-       14: {8: dist(14, 8), 13: dist(14, 13), 15: dist(14, 15), 21: dist(14, 21)},
-       15: {9: dist(15, 9), 14: dist(15, 14), 16: dist(15, 16), 22: dist(15, 22)},
-       16: {7: dist(16, 7), 10: dist(16, 10), 11: dist(16, 11), 15: dist(16, 15), 17: dist(16, 17), 23: dist(16, 23), 24: dist(16, 24)},
-       17: {11: dist(17, 11), 16: dist(17, 16), 24: dist(17, 24)},
-       18: {19: dist(18, 19), 25: dist(18, 25)},
-       19: {12: dist(19, 12), 18: dist(19, 18), 20: dist(19, 20), 26: dist(19, 26)},
-       20: {13: dist(20, 13), 19: dist(20, 19), 21: dist(20, 21), 27: dist(20, 27)},
-       21: {14: dist(21, 14), 20: dist(21, 20), 22: dist(21, 22), 29: dist(21, 29)},
-       22: {15: dist(22, 15), 21: dist(22, 21), 23: dist(22, 23), 29: dist(22, 29)},
-       23: {16: dist(23, 16), 22: dist(23, 22), 24: dist(23, 24), 30: dist(23, 30)},
-       24: {16: dist(24, 16), 17: dist(24, 17), 23: dist(24, 23), 31: dist(23, 31)},
-       25: {18: dist(25, 18), 26: dist(25, 26)},
-       26: {19: dist(26, 19), 25: dist(26, 25), 27: dist(26, 27)},
-       27: {20: dist(27, 20), 26: dist(27, 26), 28: dist(27, 28), 32: dist(27, 32), 33: dist(27, 33)},
-       28: {21: dist(28, 21), 27: dist(28, 27), 29: dist(28, 29), 33: dist(28, 33)},
-       29: {22: dist(29, 22), 28: dist(29, 28), 30: dist(29, 30), 34: dist(29, 34)},
-       30: {23: dist(30, 23), 29: dist(30, 29), 31: dist(30, 31), 35: dist(30, 35)},
-       31: {24: dist(31, 24), 30: dist(31, 30), 36: dist(31, 36)},
-       32: {27: dist(32, 27), 33: dist(32, 33), 37: dist(32, 37)},
-       33: {27: dist(33, 27), 28: dist(33, 28), 32: dist(33, 32), 34: dist(33, 34), 37: dist(33, 37), 39: dist(33, 39)},
-       34: {29: dist(34, 29), 33: dist(34, 33), 35: dist(34, 35), 39: dist(34, 39)},
-       35: {30: dist(35, 30), 34: dist(35, 34), 36: dist(35, 36), 38: dist(35, 38), 39: dist(35, 39)},
-       36: {31: dist(36, 31), 35: dist(36, 35), 38: dist(36, 38)},
-       37: {32: dist(37, 32), 33: dist(37, 33), 39: dist(37, 39)},
-       38: {35: dist(38, 35), 36: dist(38, 36), 39: dist(38, 39), 41: dist(38, 41)},
-       39: {33: dist(39, 33), 34: dist(39, 34), 35: dist(39, 35), 37: dist(39, 37), 38: dist(39, 38), 40: dist(39, 40)},
-       40: {39: dist(40, 39), 41: dist(40, 41), 42: dist(40, 42)},
-       41: {38: dist(41, 38), 40: dist(41, 40), 43: dist(41, 43)},
-       42: {40: dist(42, 40), 43: dist(42, 43)},
-       43: {41: dist(43, 41), 42: dist(43, 42)}}
+# net = {1: {2: dist(1, 2), 3: dist(1, 3), 4: dist(1, 4)},
+#        2: {1: dist(2, 1), 3: dist(2, 3), 5: dist(2, 5)},
+#        3: {1: dist(3, 1), 2: dist(3, 2), 4: dist(3, 4), 6: dist(3, 6)},
+#        4: {1: dist(4, 1), 3: dist(4, 3), 6: dist(4, 6), 7: dist(4, 7), 10: dist(4, 10)},
+#        5: {2: dist(5, 2), 6: dist(5, 6), 8: dist(5, 8)},
+#        6: {3: dist(6, 3), 4: dist(6, 4), 5: dist(6, 5), 9: dist(6, 9)},
+#        7: {4: dist(7, 4), 10: dist(7, 10), 11: dist(7, 11), 16: dist(7, 16)},
+#        8: {5: dist(8, 5), 9: dist(8, 9), 14: dist(8, 14)},
+#        9: {6: dist(9, 6), 8: dist(9, 8), 10: dist(9, 10), 15: dist(9, 15)},
+#        10: {4: dist(10, 4), 7: dist(10, 7), 9: dist(10, 9), 16: dist(10, 16)},
+#        11: {7: dist(7, 11), 16: dist(16, 11), 17: dist(11, 17)},
+#        12: {13: dist(12, 13), 19: dist(12, 19)},
+#        13: {12: dist(13, 12), 14: dist(13, 14), 20: dist(13, 20)},
+#        14: {8: dist(14, 8), 13: dist(14, 13), 15: dist(14, 15), 21: dist(14, 21)},
+#        15: {9: dist(15, 9), 14: dist(15, 14), 16: dist(15, 16), 22: dist(15, 22)},
+#        16: {7: dist(16, 7), 10: dist(16, 10), 11: dist(16, 11), 15: dist(16, 15), 17: dist(16, 17), 23: dist(16, 23), 24: dist(16, 24)},
+#        17: {11: dist(17, 11), 16: dist(17, 16), 24: dist(17, 24)},
+#        18: {19: dist(18, 19), 25: dist(18, 25)},
+#        19: {12: dist(19, 12), 18: dist(19, 18), 20: dist(19, 20), 26: dist(19, 26)},
+#        20: {13: dist(20, 13), 19: dist(20, 19), 21: dist(20, 21), 27: dist(20, 27)},
+#        21: {14: dist(21, 14), 20: dist(21, 20), 22: dist(21, 22), 29: dist(21, 29)},
+#        22: {15: dist(22, 15), 21: dist(22, 21), 23: dist(22, 23), 29: dist(22, 29)},
+#        23: {16: dist(23, 16), 22: dist(23, 22), 24: dist(23, 24), 30: dist(23, 30)},
+#        24: {16: dist(24, 16), 17: dist(24, 17), 23: dist(24, 23), 31: dist(23, 31)},
+#        25: {18: dist(25, 18), 26: dist(25, 26)},
+#        26: {19: dist(26, 19), 25: dist(26, 25), 27: dist(26, 27)},
+#        27: {20: dist(27, 20), 26: dist(27, 26), 28: dist(27, 28), 32: dist(27, 32), 33: dist(27, 33)},
+#        28: {21: dist(28, 21), 27: dist(28, 27), 29: dist(28, 29), 33: dist(28, 33)},
+#        29: {22: dist(29, 22), 28: dist(29, 28), 30: dist(29, 30), 34: dist(29, 34)},
+#        30: {23: dist(30, 23), 29: dist(30, 29), 31: dist(30, 31), 35: dist(30, 35)},
+#        31: {24: dist(31, 24), 30: dist(31, 30), 36: dist(31, 36)},
+#        32: {27: dist(32, 27), 33: dist(32, 33), 37: dist(32, 37)},
+#        33: {27: dist(33, 27), 28: dist(33, 28), 32: dist(33, 32), 34: dist(33, 34), 37: dist(33, 37), 39: dist(33, 39)},
+#        34: {29: dist(34, 29), 33: dist(34, 33), 35: dist(34, 35), 39: dist(34, 39)},
+#        35: {30: dist(35, 30), 34: dist(35, 34), 36: dist(35, 36), 38: dist(35, 38), 39: dist(35, 39)},
+#        36: {31: dist(36, 31), 35: dist(36, 35), 38: dist(36, 38)},
+#        37: {32: dist(37, 32), 33: dist(37, 33), 39: dist(37, 39)},
+#        38: {35: dist(38, 35), 36: dist(38, 36), 39: dist(38, 39), 41: dist(38, 41)},
+#        39: {33: dist(39, 33), 34: dist(39, 34), 35: dist(39, 35), 37: dist(39, 37), 38: dist(39, 38), 40: dist(39, 40)},
+#        40: {39: dist(40, 39), 41: dist(40, 41), 42: dist(40, 42)},
+#        41: {38: dist(41, 38), 40: dist(41, 40), 43: dist(41, 43)},
+#        42: {40: dist(42, 40), 43: dist(42, 43)},
+#        43: {41: dist(43, 41), 42: dist(43, 42)}}
 
 distances = np.zeros((numpolygons + 1, numpolygons + 1))
 # mark row 0 and column 0 as unused (there is no polygon #0)
@@ -276,6 +296,7 @@ distances[0] = np.nan
 distances[::, 0] = np.nan
 for p1 in range(1, distances.shape[0]):
     for p2 in range(1, distances.shape[0]):
+       
         distances[p1, p2] = dist(p1, p2)
 
 existing_net = np.zeros((numpolygons + 1, numpolygons + 1))
@@ -300,8 +321,15 @@ for (p1, p2, limit) in \
 connections = {}
 for dest in range(1, numpolygons + 1):
     for src in range(1, numpolygons + 1):
-        shortest = [n for n in dijkstra.shortestPath(net, src, dest)]
+        src_node = node_keys[src-1]
+        dest_node = node_keys[dest-1]
+        shortest_path_nodes = nx.shortest_path(G, source=src_node, target=dest_node, weight="length")
+        shortest = [node_keys.index(n) for n in shortest_path_nodes]
         pairs = []
         for i in range(len(shortest) - 1):
             pairs.append((shortest[i], shortest[i + 1]))
         connections[(src, dest)] = pairs
+
+# If run as a script in itself, print some info about the gens. 
+if __name__ == '__main__':
+    print "Testing Polygons."

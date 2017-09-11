@@ -117,11 +117,13 @@ def constructGraph(features):
 			# We create two nodes.
 			G.add_node(
 				origin_node, 
-				pos=(origin_node[1], origin_node[0])
+				pos=(origin_node[1], origin_node[0]),
+				state=state
 				)
 			G.add_node(
 				dest_node, 
-				pos=(dest_node[1], dest_node[0])
+				pos=(dest_node[1], dest_node[0]),
+				state=state
 				)
 			# We create an edge using the two nodes
 			G.add_edge(origin_node, dest_node, attr_dict=edge_info)
