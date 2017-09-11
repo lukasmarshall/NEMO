@@ -12,12 +12,6 @@ import numpy as np
 import dijkstra
 from latlong import LatLong
 import regions
-import networkx as nx
-import networkGraph
-
-G = networkGraph.getNetworkAndGeneratorGraph()
-
-
 
 # The fraction of a region's load in each polygon.
 regions.nsw.polygons = {21: 0, 22: 0, 23: 0, 24: .05, 28: 0, 29: 0, 30: 0, 31: .8, 33: 0, 34: 0, 35: .05, 36: .1}

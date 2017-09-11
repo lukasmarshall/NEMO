@@ -130,12 +130,6 @@ def constructGraph(features):
 
 
 
-
-
-
-
-
-
 def getNetworkGraph():
 	json_file =  open("networkMap/features.geojson")
 	json_data = geojson.load(json_file)
@@ -151,14 +145,18 @@ def getNetworkAndGeneratorGraph():
 	G = getNetworkGraph()
 	G = getFromPickle('./pickles/networkAndGeneratorGraph.pkl')
 	if not G:
+		G = getNetworkGraph()
 		G = _addGenerators(G)
 		saveToPickle(G, './pickles/networkAndGeneratorGraph.pkl')
-	
 	return G
 
 
 def _addGenerators(G):
 	print "Adding generators."
+
+	for node in list(G.nodes()):
+		G.node[node]['node_type'] = 'connection'	
+
 	# Get the geojson containing all gens in australia (2017)
 	json_file =  open("generatorMap/generators.geojson")
 	json_data = geojson.load(json_file)
@@ -206,9 +204,7 @@ def _addGenerators(G):
 		if feature['properties']['PRIMARYFUELTYPE']:
 			fuelType = feature['properties']['PRIMARYFUELTYPE']
 			G.node[closest_node]['generation_type'] = fuelType
-			if not fuelType in seen_gen_types:
-				seen_gen_types.append(fuelType)
-			G.node[closest_node]['generation_type_color_code'] = seen_gen_types.index(fuelType)
+			
 
 		if feature['properties']['NAME']:
 			G.node[closest_node]['generation_label'] += feature['properties']['NAME']+" "
