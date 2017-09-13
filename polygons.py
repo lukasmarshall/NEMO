@@ -268,14 +268,17 @@ def pathlen(path):
 #        42: {40: dist(42, 40), 43: dist(42, 43)},
 #        43: {41: dist(43, 41), 42: dist(43, 42)}}
 
-distances = np.zeros((numpolygons + 1, numpolygons + 1))
-# mark row 0 and column 0 as unused (there is no polygon #0)
-print "Creating distances matrix."
-distances[0] = np.nan
-distances[::, 0] = np.nan
-for p1 in range(1, distances.shape[0]):
-    for p2 in range(1, distances.shape[0]):
-        distances[p1, p2] = dist(p1, p2)
+distances = networkGraph.getFromPickle('./pickles/distances.pkl')
+if distances is None:
+    distances = np.zeros((numpolygons + 1, numpolygons + 1))
+    # mark row 0 and column 0 as unused (there is no polygon #0)
+    print "Creating distances matrix."
+    distances[0] = np.nan
+    distances[::, 0] = np.nan
+    for p1 in range(1, distances.shape[0]):
+        for p2 in range(1, distances.shape[0]):
+            distances[p1, p2] = dist(p1, p2)
+    networkGraph.saveToPickle(distances, './pickles/distances.pkl')
 
 print "Creating Limit matrix."
 existing_net = np.zeros((numpolygons + 1, numpolygons + 1))
@@ -296,8 +299,8 @@ for (p1, p2, limit) in  []:
 print "Getting Connections "
 
 connections = networkGraph.getFromPickle('./pickles/connections.pkl')
-if not G:
-    
+if connections is None:
+    print "Pickle not found. Generating connections. This can take ages."
     connections = {}
     for dest in range(1, numpolygons + 1):
         for src in range(1, numpolygons + 1):
@@ -313,6 +316,8 @@ if not G:
 
 
 
+
+print "Finished setting up electricity network model. "
 # If run as a script in itself, print some info about the gens. 
 if __name__ == '__main__':
     print "Testing Polygons."
