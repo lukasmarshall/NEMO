@@ -14,6 +14,7 @@ from latlong import LatLong
 import regions
 import networkx as nx
 import networkGraph
+from geopy.distance import vincenty
 
 # Useful for testing (in polygon 42 region model)
 wildcard = 31
@@ -91,22 +92,12 @@ def region(poly):
     """
     return _region_table[poly]
 
-# These msap a limit to an index (polygon number is used as index.)
-wind_limit = [None, 80.3, 0, 36.9, 6.5, 15.6, 1.5, 6.9, 2.6, 0, 4.1,
-              1.5, 2.1, 0.9, 30.3, 0, 0, 40.5, 0.2, 0, 49.1, 2.3, 0,
-              1.7, 116.3, 3.3, 71.9, 128.3, 11.7, 0.5, 0.6, 52.5,
-              20.0, 0, 0, 0.9, 101.0, 9.15, 10.2, 15.6, 11.4, 14.1,
-              0.5, 29.1]
+# These map a limit to an index (polygon number is used as index.)
+# Make the wind, PV, CST limits 1 MW for all regions. 
+wind_limit = [None].append([1] * (len(node_keys) + 1))
+pv_limit = [None].append([1] * (len(node_keys) + 1))
+cst_limit = [None].append([1] * (len(node_keys) + 1))
 
-pv_limit = [None, 133, 1072, 217, 266, 1343, 1424, 287, 1020, 657,
-            175, 47, 488, 749, 1338, 1497, 1093, 243, 558, 647, 639,
-            921, 1310, 1182, 125, 81, 493, 689, 937, 736, 522, 31,
-            527, 535, 618, 339, 26, 670, 78, 347, 13, 21, 0.21, 5]
-
-cst_limit = [None, 102, 822, 166, 204, 1030, 1092, 220, 782, 504, 134,
-             36, 374, 574, 1026, 1148, 838, 186, 428, 496, 490, 706,
-             1004, 906, 96, 62, 378, 528, 718, 564, 400, 24, 404, 410,
-             474, 260, 20, 514, 60, 266, 10, 16, 0.16, 4]
 
 
 def dumps():
@@ -198,31 +189,18 @@ def dist(poly1, poly2):
     >>> dist(1,43) == distances[1,43]
     True
     """
-    print "Getting dist: ("+str(poly1)+" , "+str(poly2)+")"
+    # print "Getting dist: ("+str(poly1)+" , "+str(poly2)+")"
 
-
-    
-    
     # Get the nx node objects that correspond to the two poly ids that were passed. 
-    nx_poly_1 = node_keys[poly1 - 1]
-    nx_poly_2 = node_keys[poly2 - 1]
+    nx_node_1 = node_keys[poly1 - 1]
+    nx_node_2 = node_keys[poly2 - 1]
 
+    distance = vincenty(nx_node_1, nx_node_2).kilometers
 
+    # print "Getting dist: ("+str(nx_node_1)+" , "+str(nx_node_2)+")"
+    # print distance
 
-    # Find the shortest weighted path via graphx.
-    # shortest_path = nx.shortest_path(G, source=nx_poly_1, target=nx_poly_2, weight="length")
-    shortest_path_len = nx.shortest_path_length(G, source=nx_poly_1, target=nx_poly_2, weight="length")
-    # # iterate to find the distance. 
-    # dist = 0
-    # # print "Intermediate Lengths:"
-    # for i in range(len(shortest_path)-1):
-    #     length = float(G.edge[shortest_path[i]][shortest_path[i+1]]["length"])
-    #     dist += length
-        # print length
-    # print "---"
-    # print dist
-    print shortest_path_len
-    return shortest_path_len
+    return distance
 
 
 def pathlen(path):
@@ -239,8 +217,8 @@ def pathlen(path):
     path_nx_nodes = [node_keys[n-1] for n in path]
     # iterate to find the distance. 
     dist = 0
-    for i in range(len(path_nx_nodes)-1):
-        dist += G.edge[path_nx_nodes[i]][path_nx_nodes[i+1]]["length"]
+    for i in range(len(path)-1):
+        dist += dist(path[i], path[i+1])
     return dist
 
 
@@ -292,43 +270,48 @@ def pathlen(path):
 
 distances = np.zeros((numpolygons + 1, numpolygons + 1))
 # mark row 0 and column 0 as unused (there is no polygon #0)
+print "Creating distances matrix."
 distances[0] = np.nan
 distances[::, 0] = np.nan
 for p1 in range(1, distances.shape[0]):
     for p2 in range(1, distances.shape[0]):
-       
         distances[p1, p2] = dist(p1, p2)
 
+print "Creating Limit matrix."
 existing_net = np.zeros((numpolygons + 1, numpolygons + 1))
 # mark row 0 and column 0 as unused (there is no polygon #0)
+# Existing_net appears to store transfer limits between network nodes. 
+# Leaving it as-is for the moment - not sure what to do with this until we make it into a timeseries thing based on transmission data. 
 existing_net[0] = np.nan
 existing_net[::, 0] = np.nan
 
-for (p1, p2, limit) in \
-    [(7, 4, 1100), (7, 16, 1000), (7, 11, 1100), (11, 17, 1100),
-     (16, 7, 400), (17, 11, 200), (11, 7, 200), (16, 17, 3500),
-     (16, 24, 1200), (17, 24, 250), (24, 16, 500), (24, 17, 100),
-     (24, 31, 900), (31, 24, 1100), (31, 36, 2000), (36, 31, 2000),
-     (36, 35, 1500), (35, 36, 2800), (33, 34, 100), (34, 33, 100),
-     (32, 27, 100), (27, 32, 550), (32, 33, 150), (33, 32, 230),
-     (32, 37, 900), (37, 32, 900), (37, 39, 900), (39, 37, 900),
-     (33, 39, 500), (39, 33, 1300), (34, 39, 1000), (39, 34, 1300),
-     (39, 38, 2500), (38, 39, 6400), (38, 41, 450), (41, 38, 600)]:
-    assert p1 in net[p2].keys(), (p2, p1)
-    assert p2 in net[p1].keys(), (p1, p2)
+for (p1, p2, limit) in  []:
+    # Ensure connection between these nodes actually exists in the graph. 
+    # G[] is the adjacency dictionary 
+
+    assert node_keys[p1-1] in list(G[node_keys[p2-1]])
     existing_net[p1, p2] = limit
 
-connections = {}
-for dest in range(1, numpolygons + 1):
-    for src in range(1, numpolygons + 1):
-        src_node = node_keys[src-1]
-        dest_node = node_keys[dest-1]
-        shortest_path_nodes = nx.shortest_path(G, source=src_node, target=dest_node, weight="length")
-        shortest = [node_keys.index(n) for n in shortest_path_nodes]
-        pairs = []
-        for i in range(len(shortest) - 1):
-            pairs.append((shortest[i], shortest[i + 1]))
-        connections[(src, dest)] = pairs
+
+print "Getting Connections "
+
+connections = networkGraph.getFromPickle('./pickles/connections.pkl')
+if not G:
+    
+    connections = {}
+    for dest in range(1, numpolygons + 1):
+        for src in range(1, numpolygons + 1):
+            src_node = node_keys[src-1]
+            dest_node = node_keys[dest-1]
+            shortest_path_nodes = nx.shortest_path(G, source=src_node, target=dest_node, weight="length")
+            shortest = [node_keys.index(n) for n in shortest_path_nodes]
+            pairs = []
+            for i in range(len(shortest) - 1):
+                pairs.append((shortest[i], shortest[i + 1]))
+            connections[(src, dest)] = pairs
+    networkGraph.saveToPickle(connections, './pickles/connections.pkl')
+
+
 
 # If run as a script in itself, print some info about the gens. 
 if __name__ == '__main__':
